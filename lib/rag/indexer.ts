@@ -24,7 +24,7 @@ export async function indexDocument(
     id: `doc-${Date.now()}-${chunk.index}`,
     values: embeddings[i],
     metadata: {
-      content: chunk.content.substring(0, 500), // 截断内容作为元数据存储
+      content: chunk.content, // 完整存储（分块最大 1000 字符，远低于 Pinecone 40KB 限制）
       chunkIndex: chunk.index,
       ...chunk.metadata,
     },

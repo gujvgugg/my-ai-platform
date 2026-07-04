@@ -38,9 +38,23 @@ export const messages = pgTable('messages', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+// 4. AI 调用指标表（遥测持久化）
+export const aiMetrics = pgTable('ai_metrics', {
+  id: serial('id').primaryKey(),
+  modelId: text('model_id').notNull(),
+  latencyMs: integer('latency_ms').notNull(),
+  inputTokens: integer('input_tokens').default(0),
+  outputTokens: integer('output_tokens').default(0),
+  success: integer('success').default(1), // 0 或 1
+  error: text('error'),
+  isCodeGen: integer('is_code_gen').default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 // 导出所有表
 export const schema = {
   users,
   projects,
   messages,
+  aiMetrics,
 };

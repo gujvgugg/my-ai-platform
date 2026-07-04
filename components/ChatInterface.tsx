@@ -26,10 +26,19 @@ interface Props {
 export default function ChatInterface({ projectId, projectName, initialMessages = [] }: Props) {
   const [input, setInput] = useState('');
   const [modelId, setModelId] = useState('deepseek-flash');
+  const modelIdRef = useRef(modelId);
+  modelIdRef.current = modelId;
   const { showToast } = useToast();
 
   const { messages, sendMessage, status } = useChat<UIMessage>({
-    transport: useMemo(() => new TextStreamChatTransport({ api: '/api/chat' }), []),
+    transport: useMemo(
+      () =>
+        new TextStreamChatTransport({
+          api: '/api/chat',
+          body: () => ({ modelId: modelIdRef.current }),
+        }),
+      []
+    ),
     messages: initialMessages,
   });
 
@@ -125,7 +134,8 @@ function EmptyState() {
 
 function ChatBubble({ message }: { message: UIMessage }) {
   const content = getTextContent(message);
-  const { files, isCodeGen } = parseCodeFiles(content);
+  // 只解析 assistant 消息的代码输出，跳过用户消息
+  const { files, isCodeGen } = message.role === 'assistant' ? parseCodeFiles(content) : { files: [], isCodeGen: false };
 
   return (
     <div className="pb-4 border-b border-gray-100 last:border-0 chat-message">

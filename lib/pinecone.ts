@@ -52,7 +52,11 @@ export async function upsertVectors(
   }
 
   // 降级到内存库
-  memoryVectorStore.upsert(vectors);
+  memoryVectorStore.upsert(vectors.map((v) => ({
+    ...v,
+    metadata: { ...v.metadata, dim: String(v.values.length) },
+  })));
+  return;
 }
 
 /**
@@ -80,7 +84,7 @@ export async function queryVectors(
   }
 
   // 降级到内存库
-  return memoryVectorStore.query(vector, options.topK);
+  return memoryVectorStore.query(vector, options.topK, options.filter);
 }
 
 /**

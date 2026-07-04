@@ -167,7 +167,7 @@ export default function HomePage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
         <StatCard value={projects.length} label="项目总数" color="blue" />
         <StatCard value={5} label="AI 模型" color="green" />
-        <StatCard value={5} label="Agent 工具" color="purple" />
+        <StatCard value={6} label="Agent 工具" color="purple" />
         <StatCard value={totalCodeFiles} label="生成文件" color="orange" />
       </div>
 
@@ -200,9 +200,18 @@ export default function HomePage() {
 // 子组件（React.memo 优化渲染）
 // ============================================================
 
+const COLOR_CLASSES: Record<string, string> = {
+  blue: 'text-blue-600',
+  green: 'text-green-600',
+  purple: 'text-purple-600',
+  orange: 'text-orange-600',
+};
+
 const StatCard = ({ value, label, color }: { value: number; label: string; color: string }) => (
   <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-5">
-    <div className={`text-2xl md:text-3xl font-bold text-${color}-600`}>{value}</div>
+    <div className={`text-2xl md:text-3xl font-bold ${COLOR_CLASSES[color] || 'text-gray-600'}`}>
+      {value}
+    </div>
     <div className="text-xs md:text-sm text-gray-500 mt-1">{label}</div>
   </div>
 );

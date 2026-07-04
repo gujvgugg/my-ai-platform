@@ -17,24 +17,8 @@ export interface CodeFile {
 // 代码解析
 // ============================================================
 
-/**
- * 从 AI 回复文本中提取结构化代码文件。
- * AI 被要求返回 {filePath, content} 的 JSON 数组。
- */
-export function parseCodeFromText(text: string): { files: CodeFile[]; isCodeGen: boolean } {
-  try {
-    // 找到最外层的 JSON 数组
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) return { files: [], isCodeGen: false };
-    const parsed = JSON.parse(jsonMatch[0]);
-    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].filePath) {
-      return { files: parsed as CodeFile[], isCodeGen: true };
-    }
-  } catch {
-    // 不是有效的 JSON —— 不是代码生成回复
-  }
-  return { files: [], isCodeGen: false };
-}
+// 代码解析统一由 parse-code.ts 处理
+export { parseCodeFiles as parseCodeFromText } from './parse-code';
 
 /**
  * 验证文件路径，防止路径遍历攻击。

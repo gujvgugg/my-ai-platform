@@ -32,9 +32,19 @@ export const memoryVectorStore = {
     console.log(`本地向量库: 已存入 ${records.length} 条`);
   },
 
-  query(vector: number[], topK: number = 5) {
+  query(vector: number[], topK: number = 5, filter?: Record<string, string | number | boolean>) {
     const scored: Array<{ id: string; score: number; metadata?: Record<string, string | number | boolean> }> = [];
     for (const [, record] of store) {
+      // 应用元数据过滤
+      if (filter) {
+        const meta = record.metadata;
+        if (!meta) continue;
+        let match = true;
+        for (const [key, val] of Object.entries(filter)) {
+          if (meta[key] !== val) { match = false; break; }
+        }
+        if (!match) continue;
+      }
       scored.push({
         id: record.id,
         score: cosineSim(vector, record.values),

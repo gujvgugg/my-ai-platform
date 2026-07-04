@@ -82,16 +82,20 @@ export default function SettingsPage() {
             播种知识库
           </button>
           <button
-            onClick={() => {
-              navigator.clipboard.writeText(window.location.origin);
-              showToast('已复制地址', 'success');
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(window.location.origin);
+                showToast('已复制地址', 'success');
+              } catch {
+                showToast('复制失败（需要 HTTPS）', 'error');
+              }
             }}
             className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
           >
             复制站点地址
           </button>
           <button
-            onClick={() => { window.location.href = '/api/health'; }}
+            onClick={() => { window.open('/api/health', '_blank'); }}
             className="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition"
           >
             查看健康检查 JSON
