@@ -9,15 +9,26 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.79",
+    "@ai-sdk/react": "^3.0.219",
+    "@neondatabase/serverless": "^1.1.0",
+    "@pinecone-database/pinecone": "^8.0.0",
+    "ai": "^6.0.217",
+    "drizzle-orm": "^0.45.2",
+    "jszip": "^3.10.1",
     "next": "16.2.9",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jszip": "^3.4.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "dotenv": "^17.4.2",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
     "tailwindcss": "^4",
