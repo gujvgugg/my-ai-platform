@@ -99,6 +99,16 @@ export default function HomePage() {
     }
   }, [loadRagStats]);
 
+  // RAG — 播种测试知识库（用于验证 RAG 是否生效）
+  const handleTestSeed = useCallback(async () => {
+    try {
+      const res = await fetch('/api/rag/test-seed', { method: 'POST' });
+      const data = await res.json();
+      alert(`测试库已播种 ${data.indexed} 条 (${data.backend})。去聊天中输入"生成一个登录页面"验证 RAG 是否生效`);
+      await loadRagStats();
+    } catch { alert('播种失败'); }
+  }, [loadRagStats]);
+
   // RAG — 播种默认知识库
   const handleSeedRag = useCallback(async () => {
     try {
@@ -208,6 +218,13 @@ export default function HomePage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={handleTestSeed}
+              className="px-3 py-1.5 text-xs border border-orange-300 text-orange-600 rounded-lg hover:bg-orange-50 transition font-medium"
+              title="播种 RAG 测试知识库，用于验证 RAG 是否生效"
+            >
+              🧪 RAG 验证库
+            </button>
             <button
               onClick={handleSeedRag}
               className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 transition"

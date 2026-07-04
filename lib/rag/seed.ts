@@ -161,6 +161,93 @@ const { messages, sendMessage } = useChat({
 `.trim(),
       metadata: { topic: 'ai', subtopic: 'ai-sdk' },
     },
+    {
+      content: `
+# RAG 前端界面生成规范
+
+## 设计原则
+核心目标: 降低认知负荷，将检索-生成流程可视化；即时反馈，任何操作300ms内给出状态反馈；可调试性，提供透明化的检索中间结果。
+设计范式: 双栏布局为主（左侧知识库管理，右侧对话/检索测试区）；卡片化信息呈现；状态用颜色+图标+文字三重编码。
+
+## 颜色体系
+Primary: #2563EB（按钮、链接、高亮）
+Secondary: #64748B（次要文本、图标）
+Success: #10B981（成功、就绪）
+Warning: #F59E0B（警告、索引中）
+Error: #EF4444（错误、异常）
+Background: #F8FAFC（页面背景）
+Surface: #FFFFFF（卡片、弹窗背景）
+Surface-Container: #F1F5F9（用户消息背景）
+Text-Primary: #0F172A（主文本）
+Text-Secondary: #475569（次要文本）
+Border: #E2E8F0（边框）
+
+## 字体规范
+字体栈: Inter, PingFang SC, Microsoft YaHei, sans-serif
+页面标题: 24px font-weight 600
+卡片标题: 16px font-weight 500
+正文: 14px font-weight 400 line-height 1.6
+辅助文本: 12px
+代码/数据: JetBrains Mono monospace 13px
+
+## 间距规范
+基础单位 4px，页面边距 24px，卡片内边距 16px 或 24px，卡片间距 16px，表单字段间距 16px，按钮内边距 横向16px 纵向8px
+
+## 圆角规范
+卡片/弹窗: 12px
+按钮/输入框: 8px
+标签/徽章: 9999px（全圆角）
+消息气泡: 16px
+
+## 消息气泡规范
+用户消息: 背景色 #F1F5F9，圆角16px（左下直角），最大宽度70%
+AI消息: 背景色 #FFFFFF，圆角16px（右下直角），最大宽度85%，含引用来源角标和反馈按钮
+
+## 状态标签
+未索引: 灰色
+索引中: 蓝色带旋转图标
+已就绪: 绿色
+异常: 红色，悬停显示错误详情
+
+## 响应式断点
+Desktop: >= 1280px 完整双栏/多栏布局
+Tablet: 768px-1279px 侧边栏折叠为图标
+Mobile: <768px 单栏布局，侧边栏变为抽屉
+
+## 交互规范
+Hover效果: 卡片阴影加深，按钮背景加深5%
+点击反馈: 按钮缩放0.98持续100ms
+加载态: 列表使用骨架屏，按钮内嵌圆形进度条
+生成中动画: AI消息底部显示"正在思考..."加跳动圆点
+打字机效果: AI回复逐字显示20ms/字
+
+## 上传区域规范
+拖拽上传虚线边框区域，支持多文件，显示文件类型限制
+上传列表显示文件名、大小、进度条、状态
+批量操作勾选后顶部浮动工具栏
+超过10MB文件自动分片上传
+
+## 导航栏规范
+高度56px
+元素: Logo、知识库选择器下拉、全局搜索框、用户头像菜单
+侧边栏宽度240px可折叠至64px
+底部固定系统状态指示器
+
+## 可访问性
+键盘Tab聚焦所有交互元素，Esc关闭弹窗
+图片必须alt文本，状态变化用aria-live通知
+正文对比度 >= 4.5:1，焦点环2px solid primary + 2px offset
+按钮最小点击区域44x44px
+
+## 技术栈建议
+框架: React 19 + TypeScript
+UI组件: shadcn/ui + Tailwind CSS
+状态管理: Zustand + React Query
+图表: Recharts
+实时通信: EventSource (SSE)
+`.trim(),
+      metadata: { topic: 'frontend', subtopic: 'rag-ui-spec' },
+    },
   ];
 
   const count = await indexDocuments(docs);
