@@ -2,6 +2,7 @@ import { getProject, getMessages } from '@/app/actions';
 import { dbMessagesToUI } from '@/lib/stream';
 import { notFound } from 'next/navigation';
 import ChatInterface from '@/components/ChatInterface';
+import ChatErrorBoundary from '@/components/ChatErrorBoundary';
 
 interface Props {
   params: Promise<{ projectId: string }>;
@@ -31,7 +32,9 @@ export default async function ProjectPage({ params }: Props) {
 
       {/* 聊天界面 */}
       <div className="flex-1">
-        <ChatInterface projectId={id} projectName={project.name} initialMessages={initialMessages} />
+        <ChatErrorBoundary>
+          <ChatInterface projectId={id} projectName={project.name} initialMessages={initialMessages} />
+        </ChatErrorBoundary>
       </div>
     </div>
   );

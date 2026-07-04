@@ -80,13 +80,20 @@ export async function readCodeFromDisk(projectId: number): Promise<CodeFile[]> {
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        // 跳过 node_modules、.next 等目录
         if (['node_modules', '.next', '.git', 'generated'].includes(entry.name)) continue;
         await walk(fullPath);
       } else {
-        const content = await fs.readFile(fullPath, 'utf-8');
-        const relativePath = path.relative(projectDir, fullPath).replace(/\\/g, '/');
-        files.push({ filePath: relativePath, content });
+        // 只读取文本文件，跳过二进制
+        const ext = path.extname(entry.name).toLowerCase();
+        const textExts = ['.ts','.tsx','.js','.jsx','.json','.css','.html','.md','.txt','.svg','.env','.yml','.yaml','.xml','.csv'];
+        if (!textExts.includes(ext) && ext !== '') continue;
+        try {
+          const content = await fs.readFile(fullPath, 'utf-8');
+          const relativePath = path.relative(projectDir, fullPath).replace(/\\/g, '/');
+          files.push({ filePath: relativePath, content });
+        } catch {
+          // 跳过无法读取的文件
+        }
       }
     }
   }

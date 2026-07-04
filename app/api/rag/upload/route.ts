@@ -59,9 +59,19 @@ export async function POST(req: Request) {
 
 /** 查看已索引的文件列表和数量 */
 export async function GET() {
+  const backend = (await import('@/lib/pinecone')).getVectorBackend();
+  if (backend === 'pinecone') {
+    return Response.json({
+      total: -1, // Pinecone 模式下无法精确计数
+      files: [],
+      backend: 'pinecone',
+      note: '使用 Pinecone 云端存储，请在 Pinecone 控制台查看详细统计',
+    });
+  }
   return Response.json({
     total: memoryVectorStore.size(),
     files: memoryVectorStore.list(),
+    backend: 'memory',
   });
 }
 

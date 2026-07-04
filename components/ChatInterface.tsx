@@ -74,13 +74,14 @@ export default function ChatInterface({ projectId, projectName, initialMessages 
     fd.append('role', lastMessage.role);
     fd.append('content', textContent);
     fd.append('projectId', String(projectId));
-    saveMessage(fd);
+    saveMessage(fd).catch(() => {});
     savedIds.current.add(lastMessage.id);
 
     const { files, isCodeGen } = parseCodeFiles(textContent);
     if (isCodeGen && files.length > 0 && lastMessage.role === 'assistant') {
-      saveGeneratedCode(projectId, files);
-      showToast(`已生成 ${files.length} 个文件`, 'success');
+      saveGeneratedCode(projectId, files)
+        .then(() => showToast(`已生成 ${files.length} 个文件`, 'success'))
+        .catch(() => showToast('代码保存失败', 'error'));
     }
   }, [messages, status, projectId, showToast]);
 
