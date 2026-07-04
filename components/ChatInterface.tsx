@@ -44,7 +44,7 @@ export default function ChatInterface({ projectId, projectName, initialMessages 
   // Agent 模式用 /api/workflow，普通模式用 /api/chat
   const apiEndpoint = agentMode ? '/api/workflow' : '/api/chat';
 
-  const { messages, sendMessage, status } = useChat<UIMessage>({
+  const { messages, sendMessage, status, error, regenerate } = useChat<UIMessage>({
     transport: useMemo(
       () =>
         new TextStreamChatTransport({
@@ -99,6 +99,12 @@ export default function ChatInterface({ projectId, projectName, initialMessages 
   return (
     <div className="flex flex-col h-full">
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 flex items-center justify-between">
+            <span>⚠️ {error.message || '请求失败'}</span>
+            <button onClick={() => regenerate?.()} className="text-red-600 underline text-xs shrink-0 ml-3">重试</button>
+          </div>
+        )}
         {messages.length === 0 ? (
           <EmptyState agentMode={agentMode} />
         ) : (
