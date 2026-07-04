@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePathname } from 'next/navigation';
 import { getProjects, createProject, deleteProject } from '@/app/actions';
+import { useConfirm } from './notifications';
 
 interface Project {
   id: number;
@@ -13,6 +14,7 @@ interface Project {
 
 export default function ProjectSidebar() {
   const pathname = usePathname();
+  const confirm = useConfirm();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [newName, setNewName] = useState('');
@@ -50,7 +52,13 @@ export default function ProjectSidebar() {
 
   const handleDelete = useCallback(
     async (id: number) => {
-      if (!confirm('确定要删除该项目及其所有聊天消息吗？')) return;
+      const ok = await confirm({
+        title: '删除项目',
+        message: '确定要删除该项目及其所有聊天消息吗？',
+        confirmText: '删除',
+        danger: true,
+      });
+      if (!ok) return;
       try {
         await deleteProject(id);
         await loadProjects();

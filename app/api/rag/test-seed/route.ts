@@ -1,5 +1,5 @@
 import { seedTestKnowledgeBase } from '@/lib/rag';
-import { memoryVectorStore } from '@/lib';
+import { memoryVectorStore } from '@/lib/vector-store';
 
 export async function POST() {
   const result = await seedTestKnowledgeBase();

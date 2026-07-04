@@ -1,68 +1,27 @@
 // ============================================================
+// 客户端安全模块（可在 Browser 端导入）
+// ============================================================
+
 // 基础设施
-// ============================================================
 export { env } from './env';
-export { db } from './db';
 
-// ============================================================
-// 数据模型
-// ============================================================
-export { users, projects, messages, schema } from './schema';
-
-// ============================================================
-// 模型管理
-// ============================================================
-export { modelRegistry, availableModels, defaultModel, getModel } from './models';
-export type { ModelInfo } from './models';
-export { routeModel, getFallbackModel } from './gateway';
-export type { RoutingDecision } from './gateway';
-
-// ============================================================
-// 代码生成
-// ============================================================
-export {
-  parseCodeFromText,
-  validateFilePath,
-  writeCodeToDisk,
-  readCodeFromDisk,
-  persistGeneratedCode,
-} from './code-gen';
+// 类型定义
 export type { CodeFile } from './code-gen';
+export type { ModelInfo } from './models';
+
+// 代码解析（纯前端，无服务端依赖）
 export { parseCodeFiles, looksLikeCodeOutput } from './parse-code';
 
 // ============================================================
-// 流式传输
+// 注意：以下模块仅限服务端使用，请直接从子路径导入：
+//   - '@/lib/db'          数据库
+//   - '@/lib/schema'      ORM 表结构
+//   - '@/lib/models'      模型注册
+//   - '@/lib/gateway'     模型路由
+//   - '@/lib/pinecone'    向量库（Node.js）
+//   - '@/lib/embeddings'  嵌入向量（Node.js）
+//   - '@/lib/code-gen'    代码生成（Node.js fs）
+//   - '@/lib/stream'      流式传输（服务端）
+//   - '@/lib/logger'      日志
+//   - '@/lib/telemetry'   遥测
 // ============================================================
-export { createStructuredStream, dbMessagesToUI } from './stream';
-
-// ============================================================
-// 嵌入向量
-// ============================================================
-export { embedText, embedTexts, similarity, isUsingLocalEmbeddings } from './embeddings';
-
-// ============================================================
-// 向量存储
-// ============================================================
-export {
-  upsertVectors,
-  queryVectors,
-  deleteVectors,
-  isPineconeAvailable,
-  getVectorBackend,
-} from './pinecone';
-export { memoryVectorStore } from './vector-store';
-
-// ============================================================
-// 监控
-// ============================================================
-export { logger } from './logger';
-export { recordAICall, getAICallStats } from './telemetry';
-export type { AICallMetrics } from './telemetry';
-
-// ============================================================
-// 子模块（按需导入，避免循环依赖）
-// ============================================================
-// - rag/    → import from '@/lib/rag'
-// - tools/  → import from '@/lib/tools'
-// - agent/  → import from '@/lib/agent'
-// - mcp/    → import from '@/lib/mcp'
