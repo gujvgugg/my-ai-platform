@@ -39,21 +39,34 @@ export default function ChatInterface({ projectId, projectName, initialMessages 
   const [agentMode, setAgentMode] = useState(false);
   const modelIdRef = useRef(modelId);
   modelIdRef.current = modelId;
+  const agentModeRef = useRef(agentMode);
+  agentModeRef.current = agentMode;
   const { showToast } = useToast();
 
-  // Agent 模式用 /api/workflow，普通模式用 /api/chat
   const apiEndpoint = agentMode ? '/api/workflow' : '/api/chat';
+
+  // 切换模式时重置 useChat 内部状态
+  const [modeKey, setModeKey] = useState(0);
+  const handleToggleMode = useCallback(() => {
+    setAgentMode((prev) => !prev);
+    setModeKey((k) => k + 1);
+  }, []);
 
   const { messages, sendMessage, status, error, regenerate } = useChat<UIMessage>({
     transport: useMemo(
       () =>
         new TextStreamChatTransport({
           api: apiEndpoint,
-          body: () => ({ modelId: modelIdRef.current }),
+          body: () => ({
+            modelId: modelIdRef.current,
+            ...(agentModeRef.current ? { projectId } : {}),
+          }),
         }),
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [apiEndpoint]
     ),
     messages: initialMessages,
+    id: `chat-${modeKey}`,
   });
 
   const savedIds = useRef<Set<string>>(new Set());
@@ -62,19 +75,28 @@ export default function ChatInterface({ projectId, projectName, initialMessages 
     initialMessages.forEach((m) => savedIds.current.add(m.id));
   }, [initialMessages]);
 
+  // 消息到达时保存到数据库（含 tool-call 部件）
   useEffect(() => {
     if (messages.length === 0 || status === 'streaming') return;
     const lastMessage = messages[messages.length - 1];
     if (!lastMessage || savedIds.current.has(lastMessage.id)) return;
+    if (lastMessage.role === 'system') return;
 
     const textContent = getTextContent(lastMessage);
-    if (!textContent || lastMessage.role === 'system') return;
+    const toolParts = lastMessage.parts?.filter(isToolUIPart) || [];
+    const hasToolCalls = toolParts.length > 0;
 
-    const fd = new FormData();
-    fd.append('role', lastMessage.role);
-    fd.append('content', textContent);
-    fd.append('projectId', String(projectId));
-    saveMessage(fd).catch(() => {});
+    const contentToSave = hasToolCalls
+      ? `${textContent}\n__TOOL_PARTS__${JSON.stringify(toolParts)}`
+      : textContent;
+
+    if (contentToSave) {
+      const fd = new FormData();
+      fd.append('role', lastMessage.role);
+      fd.append('content', contentToSave);
+      fd.append('projectId', String(projectId));
+      saveMessage(fd).catch((err) => console.error('保存消息失败:', err));
+    }
     savedIds.current.add(lastMessage.id);
 
     const { files, isCodeGen } = parseCodeFiles(textContent);
@@ -114,36 +136,26 @@ export default function ChatInterface({ projectId, projectName, initialMessages 
 
       <form onSubmit={handleSubmit} className="border-t border-gray-200 p-4 bg-white shrink-0">
         <div className="flex gap-2 items-center">
-          {/* Agent 模式开关 */}
           <button
             type="button"
-            onClick={() => setAgentMode(!agentMode)}
+            onClick={handleToggleMode}
             className={`px-2.5 py-1.5 text-xs rounded-lg font-medium transition shrink-0 ${
-              agentMode
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              agentMode ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             }`}
-            title={agentMode ? 'Agent 模式：AI 可使用工具逐步完成任务' : '普通模式：直接对话'}
+            title={agentMode ? 'Agent 模式：AI 使用工具逐步完成任务' : '普通模式：直接对话'}
           >
             {agentMode ? '🤖 Agent' : '💬'}
           </button>
           <input
             className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             value={input}
-            placeholder={
-              agentMode
-                ? '描述复杂任务，Agent 会分步执行...'
-                : '描述你想构建的应用...'
-            }
+            placeholder={agentMode ? '描述复杂任务，Agent 会分步执行...' : '描述你想构建的应用...'}
             onChange={(e) => setInput(e.target.value)}
             disabled={status === 'streaming'}
           />
           <ModelSelector selectedModelId={modelId} onSelect={setModelId} />
-          <button
-            type="submit"
-            disabled={status === 'streaming'}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-sm shrink-0"
-          >
+          <button type="submit" disabled={status === 'streaming'}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-sm shrink-0">
             {status === 'streaming' ? '...' : '发送'}
           </button>
         </div>
@@ -174,20 +186,14 @@ function ChatBubble({ message, agentMode }: { message: UIMessage; agentMode: boo
   const content = getTextContent(message);
   const { files, isCodeGen } =
     message.role === 'assistant' ? parseCodeFiles(content) : { files: [], isCodeGen: false };
-
-  // 从消息部件中提取 Agent 步骤
   const agentSteps = useMemo(() => extractAgentSteps(message), [message]);
 
   return (
     <div className="pb-4 border-b border-gray-100 last:border-0 chat-message">
       <strong className="text-sm text-gray-500">
-        {message.role === 'user' ? '👤 用户' : agentMode ? '🤖 Agent' : '🤖 AI'}
+        {message.role === 'user' ? '用户' : agentMode ? '🤖 Agent' : '🤖 AI'}
       </strong>
-
-      {/* Agent 步骤可视化 */}
       {agentSteps.length > 0 && <WorkflowViewer steps={agentSteps} />}
-
-      {/* 代码或纯文本 */}
       {isCodeGen && files.length > 0 ? (
         <CodeViewer files={files} projectName={undefined} />
       ) : content ? (
@@ -202,37 +208,20 @@ function ChatBubble({ message, agentMode }: { message: UIMessage; agentMode: boo
 // ============================================================
 
 function getTextContent(message: UIMessage): string {
-  return (
-    message.parts
-      ?.filter(isTextUIPart)
-      .map((p) => p.text)
-      .join('') || ''
-  );
+  return message.parts?.filter(isTextUIPart).map((p) => p.text).join('') || '';
 }
 
-/** 从 UIMessage 的 tool-call/tool-result 部件中提取 Agent 步骤 */
 function extractAgentSteps(message: UIMessage): WorkflowStep[] {
   if (message.role !== 'assistant') return [];
-
-  return message.parts
-    .filter(isToolUIPart)
-    .map((part, i) => {
-      const toolName = getToolName(part);
-      const state = (part as { state?: string }).state;
-      const input = (part as { input?: unknown }).input;
-      const output = (part as { output?: unknown }).output;
-
-      let type: WorkflowStep['type'] = 'thinking';
-      if (state === 'input-available' || state === 'input-streaming') type = 'tool-call';
-      else if (state === 'output-available') type = 'tool-result';
-      else if (state === 'output-error' || state === 'output-denied') type = 'done';
-
-      return {
-        stepNumber: i + 1,
-        type,
-        toolName,
-        toolInput: input,
-        toolOutput: output,
-      };
-    });
+  return message.parts.filter(isToolUIPart).map((part, i) => {
+    const toolName = getToolName(part);
+    const state = (part as { state?: string }).state;
+    const input = (part as { input?: unknown }).input;
+    const output = (part as { output?: unknown }).output;
+    let type: WorkflowStep['type'] = 'thinking';
+    if (state === 'input-available' || state === 'input-streaming') type = 'tool-call';
+    else if (state === 'output-available') type = 'tool-result';
+    else if (state === 'output-error' || state === 'output-denied') type = 'done';
+    return { stepNumber: i + 1, type, toolName, toolInput: input, toolOutput: output };
+  });
 }
