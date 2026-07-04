@@ -2,7 +2,7 @@ import { convertToModelMessages, streamText, type UIMessage } from 'ai';
 import { env } from '@/lib/env';
 import { getModel } from '@/lib/models';
 import { getFallbackModel } from '@/lib/gateway';
-import { retrieveContext, formatRetrievedContext } from '@/lib/rag/retriever';
+import { retrieveContext, formatRetrievedContext } from '@/lib/rag';
 
 // ============================================================
 // 上下文限制

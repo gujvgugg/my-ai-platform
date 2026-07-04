@@ -1,7 +1,5 @@
-import { retrieveContext } from '@/lib/rag/retriever';
-import { getVectorBackend, isPineconeAvailable } from '@/lib/pinecone';
-import { isUsingLocalEmbeddings } from '@/lib/embeddings';
-import { memoryVectorStore } from '@/lib/vector-store';
+import { retrieveContext } from '@/lib/rag';
+import { getVectorBackend, isUsingLocalEmbeddings, memoryVectorStore } from '@/lib';
 
 /**
  * GET /api/rag/test?q=你的问题&topK=3

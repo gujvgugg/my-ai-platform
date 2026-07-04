@@ -1,5 +1,5 @@
-import { indexDocument } from '@/lib/rag/indexer';
-import { memoryVectorStore } from '@/lib/vector-store';
+import { indexDocument } from '@/lib/rag';
+import { memoryVectorStore } from '@/lib';
 
 /** 支持的文件类型 */
 const ALLOWED_EXTENSIONS = [

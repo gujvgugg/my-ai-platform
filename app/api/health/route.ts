@@ -1,8 +1,5 @@
-import { db } from '@/lib/db';
-import { getAICallStats } from '@/lib/telemetry';
-import { getVectorBackend } from '@/lib/pinecone';
-import { isUsingLocalEmbeddings } from '@/lib/embeddings';
-import { availableModels } from '@/lib/models';
+import { db, getAICallStats, getVectorBackend, isUsingLocalEmbeddings } from '@/lib';
+import { availableModels } from '@/lib';
 
 export async function GET() {
   let dbStatus: 'ok' | 'error' = 'error';

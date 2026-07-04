@@ -4,7 +4,7 @@
  */
 
 import { convertToModelMessages, type UIMessage } from 'ai';
-import { createCodeGenAgent } from '@/lib/agent/orchestrator';
+import { createCodeGenAgent } from '@/lib/agent';
 
 export async function POST(req: Request) {
   try {

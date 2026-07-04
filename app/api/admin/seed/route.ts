@@ -1,4 +1,4 @@
-import { seedKnowledgeBase } from '@/lib/rag/seed';
+import { seedKnowledgeBase } from '@/lib/rag';
 import { env } from '@/lib/env';
 
 export async function POST(req: Request) {
