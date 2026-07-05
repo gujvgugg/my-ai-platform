@@ -2,7 +2,7 @@
 
 import { db } from '@/lib/db';
 import { messages, projects } from '@/lib/schema';
-import { writeCodeToDisk } from '@/lib/code-gen';
+import { writeCodeToDisk, readCodeFromDisk } from '@/lib/code-gen';
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 
@@ -133,5 +133,28 @@ export async function saveGeneratedCode(
     console.log(`已保存 ${files.length} 个代码文件到项目 #${projectId}（DB + 磁盘）`);
   } catch (error) {
     console.error('保存生成代码失败:', error);
+  }
+}
+
+/** Agent 完成后：从磁盘读取生成的文件，同步到数据库 codeSnapshot */
+export async function syncCodeFromDisk(projectId: number) {
+  try {
+    const files = await readCodeFromDisk(projectId);
+    if (files.length === 0) return files;
+
+    await db
+      .update(projects)
+      .set({
+        codeSnapshot: files as unknown as Record<string, unknown>[],
+        updatedAt: new Date(),
+      })
+      .where(eq(projects.id, projectId));
+
+    revalidatePath('/');
+    console.log(`已从磁盘同步 ${files.length} 个文件到项目 #${projectId}`);
+    return files;
+  } catch (error) {
+    console.error('同步代码失败:', error);
+    return [];
   }
 }
