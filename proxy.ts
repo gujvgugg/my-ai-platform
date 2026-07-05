@@ -11,7 +11,8 @@ export function proxy(request: NextRequest) {
 
   // 安全响应头
   response.headers.set('X-Content-Type-Options', 'nosniff');
-  response.headers.set('X-Frame-Options', 'DENY');
+  // SAMEORIGIN 而非 DENY：允许同源 iframe 预览生成的应用
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('X-XSS-Protection', '1; mode=block');
 

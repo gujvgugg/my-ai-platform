@@ -3,6 +3,7 @@ import { env } from '@/lib/env';
 import { getModel } from '@/lib/models';
 import { getFallbackModel } from '@/lib/gateway';
 import { retrieveContext, formatRetrievedContext } from '@/lib/rag';
+import { buildCodeGenSystemPrompt } from '@/lib/app-generator';
 
 // ============================================================
 // 上下文限制
@@ -16,28 +17,55 @@ const MAX_SYSTEM_CHARS = 8000;    // 系统提示词最多 8000 字符
 // 代码生成意图检测
 // ============================================================
 
-function isCodeGenRequest(userContent: string): boolean {
+/**
+ * 简单代码生成：单个组件、页面
+ */
+function isSimpleCodeGen(userContent: string): boolean {
   const patterns = [
-    /生成.*页面/, /生成.*应用/, /生成.*组件/, /生成.*代码/, /生成.*项目/,
-    /生成.*功能/, /生成.*表单/, /生成.*后台/, /创建.*应用/, /创建.*项目/,
-    /创建.*页面/, /帮我.*生成/, /帮我.*创建/, /帮我.*写/, /帮我.*开发/,
-    /帮我.*做/, /写.*页面/, /写.*组件/, /写.*应用/, /开发.*应用/,
-    /开发.*网站/, /搭建.*网站/, /搭建.*项目/, /做一个/, /给我做/,
-    /^生成/, /^创建/, /^写一个/, /^帮我/,
-    /\bgenerate\b.*\b(app|page|component|website|site|form)\b/i,
-    /\bcreate\b.*\b(app|page|component|website|site|form)\b/i,
-    /\bbuild\b.*\b(app|page|component|website|site|form)\b/i,
+    /生成.*(?:页面|组件|表单|按钮|导航|卡片|列表|弹窗)/,
+    /创建.*(?:页面|组件|表单|按钮)/,
+    /写.*(?:页面|组件|表单)/,
+    /做一个.*(?:页面|组件|表单|UI)/,
   ];
   return patterns.some((p) => p.test(userContent));
 }
 
+/**
+ * 复杂应用生成：完整应用、项目、系统
+ */
+function isComplexCodeGen(userContent: string): boolean {
+  const patterns = [
+    /生成.*(?:应用|项目|系统|后台|网站|平台)/,
+    /创建.*(?:应用|项目|系统|后台|网站|平台)/,
+    /开发.*(?:应用|项目|系统|后台|网站|平台)/,
+    /搭建.*(?:应用|项目|系统|后台|网站|平台)/,
+    /帮我.*(?:生成|创建|开发|搭建|做).*(?:应用|项目|系统|后台|网站|平台)/,
+    /(?:待办|博客|商城|电商|论坛|聊天|仪表盘|管理|任务|笔记|相册|日历)/,
+    /支持.*(?:添加|编辑|删除|修改|标记|搜索|筛选|分页|排序|登录|注册)/,
+    /数据库|Server\s*Action|CRUD|Schema/i,
+  ];
+  return patterns.some((p) => p.test(userContent));
+}
+
+/**
+ * 判断是否为代码生成请求（简单或复杂）
+ */
+function isCodeGenRequest(userContent: string): { isCodeGen: boolean; isComplex: boolean } {
+  if (isComplexCodeGen(userContent)) return { isCodeGen: true, isComplex: true };
+  if (isSimpleCodeGen(userContent)) return { isCodeGen: true, isComplex: false };
+  // 通用代码生成关键词
+  const generic = /生成.*代码|生成.*功能|帮我.*生成|帮我.*写|帮我.*做|^生成|^创建|^写一个|^帮我/;
+  if (generic.test(userContent)) return { isCodeGen: true, isComplex: false };
+  return { isCodeGen: false, isComplex: false };
+}
+
 // ============================================================
-// 系统提示词（精简版，减少 token 占用）
+// 系统提示词
 // ============================================================
 
-const CODE_GEN_SYSTEM_PROMPT = `你是代码生成器。只输出 JSON 数组，不要任何解释、markdown。格式：[{"filePath":"...","content":"..."}]。字符串内换行用 \n，双引号用 \"。`;
+const SIMPLE_CODE_GEN_PROMPT = `你是代码生成器。只输出 JSON 数组，不要任何解释、markdown。格式：[{"filePath":"...","content":"..."}]。字符串内换行用 \\n，双引号用 \\"。`;
 
-const CHAT_SYSTEM_PROMPT = `你是全栈开发助手，用中文回复。收到"生成/创建/帮我做"请求时只输出 JSON 数组代码。`;
+const CHAT_SYSTEM_PROMPT = `你是全栈开发助手，中文回复。收到"生成/创建/帮我做"请求时只输出 JSON 数组代码。格式：[{"filePath":"...","content":"..."}]。`;
 
 // ============================================================
 // POST 处理函数
@@ -61,7 +89,7 @@ export async function POST(req: Request) {
       return Response.json({ error: '请求体必须包含非空的 messages 数组' }, { status: 400 });
     }
 
-    // ——— 1. 截断对话历史，防止上下文溢出 ———
+    // ——— 1. 截断对话历史 ———
     const trimmedMessages = messages.slice(-MAX_HISTORY_MESSAGES);
     console.log(`消息: ${messages.length} 条 → 截断为 ${trimmedMessages.length} 条`);
 
@@ -74,30 +102,66 @@ export async function POST(req: Request) {
           .join('') || ''
       : '';
 
-    const isCodeGen = isCodeGenRequest(lastUserContent);
-    console.log(`代码生成模式: ${isCodeGen} — "${lastUserContent.slice(0, 60)}"`);
+    const { isCodeGen, isComplex } = isCodeGenRequest(lastUserContent);
+    console.log(`代码生成: ${isCodeGen} (复杂=${isComplex}) — "${lastUserContent.slice(0, 80)}"`);
 
     // ——— 3. 模型路由 ———
     const requestedModel = (body.modelId as string) || undefined;
-    let modelId = requestedModel || 'deepseek-flash';
+    // 复杂应用生成自动使用 Pro 模型（如果用户没有明确指定）
+    let modelId = requestedModel || (isComplex ? 'deepseek-pro' : 'deepseek-flash');
+    // 如果用户明确选了 flash 但任务复杂，仍然尊重用户选择
 
     // ——— 4. 构建系统提示词 + RAG ———
-    let systemPrompt = isCodeGen ? CODE_GEN_SYSTEM_PROMPT : CHAT_SYSTEM_PROMPT;
+    let systemPrompt: string;
+    let temperature: number;
+    let maxOutputTokens: number;
 
-    if (isCodeGen && lastUserContent) {
-      try {
-        const chunks = await retrieveContext(lastUserContent, { topK: 3 });
-        if (chunks.length > 0) {
-          let context = formatRetrievedContext(chunks);
-          if (context.length > MAX_RAG_CHARS) {
-            context = context.slice(0, MAX_RAG_CHARS) + '\n...(已截断)';
+    if (isComplex) {
+      // 复杂应用：使用增强提示词
+      systemPrompt = buildCodeGenSystemPrompt(lastUserContent);
+      temperature = 0.2;
+      maxOutputTokens = 8192;
+
+      // 附加 RAG 知识库
+      if (lastUserContent) {
+        try {
+          const chunks = await retrieveContext(lastUserContent, { topK: 3 });
+          if (chunks.length > 0) {
+            let context = formatRetrievedContext(chunks);
+            if (context.length > MAX_RAG_CHARS) {
+              context = context.slice(0, MAX_RAG_CHARS) + '\n...(已截断)';
+            }
+            systemPrompt = `## 参考文档\n${context}\n---\n${systemPrompt}`;
+            console.log(`[RAG] 检索到 ${chunks.length} 条 (${context.length} 字符)`);
           }
-          systemPrompt = `参考文档:\n${context}\n---\n${CODE_GEN_SYSTEM_PROMPT}`;
-          console.log(`[RAG] 检索到 ${chunks.length} 条 (${context.length} 字符)`);
+        } catch (err) {
+          console.warn('RAG 检索失败:', err);
         }
-      } catch (err) {
-        console.warn('RAG 检索失败:', err);
       }
+    } else if (isCodeGen) {
+      // 简单代码生成：快速路径
+      systemPrompt = SIMPLE_CODE_GEN_PROMPT;
+      temperature = 0.3;
+      maxOutputTokens = 4096;
+
+      // 简单代码生成也尝试 RAG
+      if (lastUserContent) {
+        try {
+          const chunks = await retrieveContext(lastUserContent, { topK: 2 });
+          if (chunks.length > 0) {
+            let context = formatRetrievedContext(chunks);
+            if (context.length > MAX_RAG_CHARS) {
+              context = context.slice(0, MAX_RAG_CHARS);
+            }
+            systemPrompt = `参考:\n${context}\n---\n${SIMPLE_CODE_GEN_PROMPT}`;
+          }
+        } catch { /* 失败不影响主流程 */ }
+      }
+    } else {
+      // 普通聊天
+      systemPrompt = CHAT_SYSTEM_PROMPT;
+      temperature = 0.7;
+      maxOutputTokens = 2048;
     }
 
     // 系统提示词兜底截断
@@ -105,7 +169,7 @@ export async function POST(req: Request) {
       systemPrompt = systemPrompt.slice(0, MAX_SYSTEM_CHARS);
     }
 
-    console.log(`上下文大小: system=${systemPrompt.length}字符, messages=${trimmedMessages.length}条`);
+    console.log(`上下文: system=${systemPrompt.length}字符, messages=${trimmedMessages.length}条, tokens=${maxOutputTokens}, model=${modelId}`);
 
     // ——— 5. 转换消息 ———
     const modelMessages = await convertToModelMessages(
@@ -113,14 +177,16 @@ export async function POST(req: Request) {
     );
 
     // ——— 6. 流式生成 ———
+    const timeoutMs = isComplex ? 180_000 : 120_000;
+
     async function tryStream(model: ReturnType<typeof getModel>) {
       return streamText({
         model,
         system: systemPrompt,
         messages: modelMessages,
-        temperature: isCodeGen ? 0.3 : 0.7,
-        maxOutputTokens: isCodeGen ? 4096 : 2048,
-        abortSignal: AbortSignal.timeout(120_000), // 2分钟超时
+        temperature,
+        maxOutputTokens,
+        abortSignal: AbortSignal.timeout(timeoutMs),
       });
     }
 
@@ -133,7 +199,10 @@ export async function POST(req: Request) {
 
       // 超时不降级，直接返回错误
       if (msg.includes('timeout') || msg.includes('abort')) {
-        return Response.json({ error: '请求超时，请简化你的问题或清空对话后重试' }, { status: 504 });
+        return Response.json(
+          { error: '请求超时，请简化你的问题或清空对话后重试' },
+          { status: 504 }
+        );
       }
 
       const fallbackId = getFallbackModel(modelId);

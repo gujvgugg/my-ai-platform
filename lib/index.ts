@@ -12,6 +12,9 @@ export type { ModelInfo } from './models';
 // 代码解析（纯前端，无服务端依赖）
 export { parseCodeFiles, looksLikeCodeOutput } from './parse-code';
 
+// 应用生成引擎类型（纯前端可用）
+export type { AppSpec } from './app-generator';
+
 // ============================================================
 // 注意：以下模块仅限服务端使用，请直接从子路径导入：
 //   - '@/lib/db'          数据库

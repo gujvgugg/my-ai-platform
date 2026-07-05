@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
 
   // External packages that should not be bundled
-  serverExternalPackages: ['@neondatabase/serverless', '@pinecone-database/pinecone'],
+  serverExternalPackages: ['@neondatabase/serverless', '@pinecone-database/pinecone', 'esbuild'],
 
   // Allow images from any HTTPS source
   images: {

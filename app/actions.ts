@@ -2,6 +2,7 @@
 
 import { db } from '@/lib/db';
 import { messages, projects } from '@/lib/schema';
+import { writeCodeToDisk } from '@/lib/code-gen';
 import { revalidatePath } from 'next/cache';
 import { eq } from 'drizzle-orm';
 
@@ -110,12 +111,13 @@ export async function saveMessage(formData: FormData) {
 // 代码生成持久化
 // ============================================================
 
-/** 将 AI 生成的代码文件保存到数据库 */
+/** 将 AI 生成的代码文件保存到数据库和磁盘 */
 export async function saveGeneratedCode(
   projectId: number,
   files: Array<{ filePath: string; content: string }>
 ) {
   try {
+    // 1. 保存到数据库
     await db
       .update(projects)
       .set({
@@ -123,8 +125,12 @@ export async function saveGeneratedCode(
         updatedAt: new Date(),
       })
       .where(eq(projects.id, projectId));
+
+    // 2. 同时写入磁盘（预览 API 需要从磁盘读取）
+    await writeCodeToDisk(projectId, files);
+
     revalidatePath('/');
-    console.log(`已保存 ${files.length} 个代码文件到项目 #${projectId}`);
+    console.log(`已保存 ${files.length} 个代码文件到项目 #${projectId}（DB + 磁盘）`);
   } catch (error) {
     console.error('保存生成代码失败:', error);
   }
