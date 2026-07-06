@@ -46,7 +46,7 @@ export const modelRegistry = customProvider({
   embeddingModels: {
     'text-embedding-3-small': openaiProvider
       ? openaiProvider.embedding('text-embedding-3-small')
-      : ollamaProvider.embedding('nomic-embed-text'),
+      : deepseekProvider.embedding('deepseek-embedding'),
   },
   fallbackProvider: deepseekProvider,
 });
