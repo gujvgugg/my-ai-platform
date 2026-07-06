@@ -118,6 +118,19 @@ export default function ProjectSidebar() {
 
       {/* 主导航 */}
       <nav className="p-2 border-b border-gray-100">
+        {/* 新对话按钮 */}
+        <Link
+          href="/projects/new"
+          className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition mb-0.5 ${
+            pathname === '/projects/new'
+              ? 'bg-blue-50 text-blue-700 font-medium'
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+          title={collapsed ? '新对话' : undefined}
+        >
+          <span className="text-base shrink-0">💬</span>
+          {!collapsed && <span>新对话</span>}
+        </Link>
         {NAV_ITEMS.map((item) => (
           <Link
             key={item.href}
@@ -143,19 +156,7 @@ export default function ProjectSidebar() {
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">项目</span>
               <span className="text-xs text-gray-300">{projects.length}</span>
             </div>
-            {/* 新对话按钮 */}
-            <Link
-              href="/projects/new"
-              className={`flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg text-sm transition ${
-                pathname === '/projects/new'
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <span className="text-base">💬</span>
-              <span>新对话</span>
-            </Link>
-            <div className="flex gap-1 mt-1.5">
+            <div className="flex gap-1 mt-2">
               <input
                 className="flex-1 p-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="新建项目..."
