@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import { Analytics } from '@vercel/analytics/react';
 import './globals.css';
 import { ProjectSidebar } from '@/components';
 import AppProviders from '@/components/AppProviders';
@@ -34,6 +35,7 @@ export default function RootLayout({
           <ProjectSidebar />
           <main className="flex-1 overflow-y-auto relative z-10">{children}</main>
         </AppProviders>
+        <Analytics />
       </body>
     </html>
   );
