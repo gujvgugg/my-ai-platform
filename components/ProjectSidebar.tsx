@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getProjects, createProject, deleteProject } from '@/app/actions';
 import { useConfirm, useToast } from './notifications';
@@ -23,6 +23,7 @@ const NAV_ITEMS = [
 
 export default function ProjectSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const confirm = useConfirm();
   const { showToast } = useToast();
 
@@ -48,6 +49,15 @@ export default function ProjectSidebar() {
 
   useEffect(() => { loadProjects(); }, [loadProjects]);
 
+  // 监听空白对话页创建项目事件，及时刷新侧边栏
+  useEffect(() => {
+    const handler = () => {
+      loadProjects();
+    };
+    window.addEventListener('project-created', handler);
+    return () => window.removeEventListener('project-created', handler);
+  }, [loadProjects]);
+
   const handleCreate = useCallback(async () => {
     const name = newName.trim() || `项目 ${projects.length + 1}`;
     if (!name) return;
@@ -72,11 +82,15 @@ export default function ProjectSidebar() {
     try {
       await deleteProject(id);
       await loadProjects();
+      // 如果删除的是当前正在浏览的项目，跳转到空白对话页
+      if (activeProjectId === id) {
+        router.push('/projects/new');
+      }
       showToast('已删除', 'success');
     } catch {
       showToast('删除失败', 'error');
     }
-  }, [loadProjects, confirm, showToast]);
+  }, [loadProjects, confirm, showToast, activeProjectId, router]);
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
@@ -129,7 +143,19 @@ export default function ProjectSidebar() {
               <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">项目</span>
               <span className="text-xs text-gray-300">{projects.length}</span>
             </div>
-            <div className="flex gap-1 mt-2">
+            {/* 新对话按钮 */}
+            <Link
+              href="/projects/new"
+              className={`flex items-center gap-2 mt-2 px-3 py-1.5 rounded-lg text-sm transition ${
+                pathname === '/projects/new'
+                  ? 'bg-blue-50 text-blue-700 font-medium'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <span className="text-base">💬</span>
+              <span>新对话</span>
+            </Link>
+            <div className="flex gap-1 mt-1.5">
               <input
                 className="flex-1 p-1.5 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="新建项目..."

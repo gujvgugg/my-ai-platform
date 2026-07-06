@@ -20,6 +20,8 @@ interface Props {
   projectId: number;
   projectName?: string;
   initialMessages?: UIMessage[];
+  /** 挂载时自动发送的首条消息文本（从空白对话页跳转而来） */
+  autoSend?: string;
 }
 
 interface WorkflowStep {
@@ -40,7 +42,12 @@ interface CodeFile {
 // 组件
 // ============================================================
 
-export default function ChatInterface({ projectId, projectName, initialMessages = [] }: Props) {
+export default function ChatInterface({
+  projectId,
+  projectName,
+  initialMessages = [],
+  autoSend,
+}: Props) {
   const [input, setInput] = useState('');
   const [modelId, setModelId] = useState('deepseek-flash');
   const [agentMode, setAgentMode] = useState(false);
@@ -95,6 +102,22 @@ export default function ChatInterface({ projectId, projectName, initialMessages 
   useEffect(() => {
     initialMessages.forEach((m) => savedIds.current.add(m.id));
   }, [initialMessages]);
+
+  // 从空白对话页跳转而来时，自动发送首条消息
+  const autoSendRef = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!autoSend || autoSend.trim() === '') return;
+    if (initialMessages.length > 0) return; // 已有消息记录，不重复发送
+    if (autoSendRef.current === autoSend) return; // React StrictMode 防护
+    if (status !== 'ready') return; // useChat 尚未就绪
+
+    autoSendRef.current = autoSend;
+    sendMessage({ text: autoSend });
+
+    // 清除 URL 中的 firstMessage 参数，防止刷新后重复发送
+    window.history.replaceState(null, '', window.location.pathname);
+  }, [autoSend, initialMessages.length, status, sendMessage]);
 
   // 消息到达时保存到数据库，并提取代码文件用于预览
   useEffect(() => {

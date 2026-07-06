@@ -6,10 +6,12 @@ import ChatErrorBoundary from '@/components/ChatErrorBoundary';
 
 interface Props {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ firstMessage?: string }>;
 }
 
-export default async function ProjectPage({ params }: Props) {
+export default async function ProjectPage({ params, searchParams }: Props) {
   const { projectId } = await params;
+  const { firstMessage } = await searchParams;
   const id = parseInt(projectId, 10);
 
   if (isNaN(id)) notFound();
@@ -33,7 +35,12 @@ export default async function ProjectPage({ params }: Props) {
       {/* 聊天界面 */}
       <div className="flex-1">
         <ChatErrorBoundary>
-          <ChatInterface projectId={id} projectName={project.name} initialMessages={initialMessages} />
+          <ChatInterface
+            projectId={id}
+            projectName={project.name}
+            initialMessages={initialMessages}
+            autoSend={firstMessage}
+          />
         </ChatErrorBoundary>
       </div>
     </div>
