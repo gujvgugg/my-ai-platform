@@ -30,6 +30,7 @@ export default function ModelSelector({ selectedModelId, onSelect }: Props) {
   return (
     <div className="relative">
       <button
+        type="button"
         onClick={() => setOpen(!open)}
         className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition"
         title="选择 AI 模型"
