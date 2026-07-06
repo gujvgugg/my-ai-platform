@@ -1,10 +1,12 @@
 /**
  * RAG 索引器 —— 将文档分块、生成嵌入向量并存入 Pinecone。
+ * 同时同步 BM25 关键词索引和嵌入词汇表。
  */
 
 import { chunkText, chunkDocuments, type Chunk } from './chunker';
-import { embedText, embedTexts } from '../embeddings';
+import { embedText, embedTexts, addDocumentToVocabulary } from '../embeddings';
 import { upsertVectors } from '../pinecone';
+import { memoryVectorStore } from '../vector-store';
 
 /**
  * 将单个文档索引到向量存储中。
@@ -13,9 +15,16 @@ export async function indexDocument(
   content: string,
   metadata?: Record<string, string | number | boolean>
 ): Promise<number> {
+  // 为每个文档生成唯一 ID（用于去重）
+  const sourceDocId = `doc-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  const chunks = chunkText(content, { metadata });
+  const chunks = chunkText(content, {
+    metadata: { ...metadata, sourceDocId },
+  });
   if (chunks.length === 0) return 0;
+
+  // 更新嵌入词汇表
+  addDocumentToVocabulary(content);
 
   const texts = chunks.map((c) => c.content);
   const embeddings = await embedTexts(texts);
@@ -24,7 +33,7 @@ export async function indexDocument(
     id: `doc-${Date.now()}-${chunk.index}`,
     values: embeddings[i],
     metadata: {
-      content: chunk.content, // 完整存储（分块最大 1000 字符，远低于 Pinecone 40KB 限制）
+      content: chunk.content,
       chunkIndex: chunk.index,
       ...chunk.metadata,
     },
@@ -40,8 +49,23 @@ export async function indexDocument(
 export async function indexDocuments(
   docs: Array<{ content: string; metadata?: Record<string, string | number | boolean> }>
 ): Promise<number> {
+  // 更新嵌入词汇表
+  for (const doc of docs) {
+    addDocumentToVocabulary(doc.content);
+  }
 
-  const chunks = chunkDocuments(docs);
+  // 为每个文档生成唯一 ID
+  const docsWithId = docs.map((doc, docIndex) => ({
+    ...doc,
+    sourceDocId: `batch-${Date.now()}-${docIndex}`,
+  }));
+
+  const chunks = chunkDocuments(
+    docsWithId.map((d) => ({
+      content: d.content,
+      metadata: { ...d.metadata, sourceDocId: d.sourceDocId },
+    }))
+  );
   if (chunks.length === 0) return 0;
 
   // 分批嵌入，避免超过速率限制
@@ -77,12 +101,13 @@ export async function indexCodeFiles(
   files: Array<{ filePath: string; content: string }>,
   projectId: number
 ): Promise<number> {
-  const docs = files.map((f) => ({
+  const docs = files.map((f, docIndex) => ({
     content: `// 文件: ${f.filePath}\n${f.content}`,
     metadata: {
       filePath: f.filePath,
       projectId: String(projectId),
       type: 'code',
+      sourceDocId: `code-${projectId}-${docIndex}-${Date.now()}`,
     },
   }));
 

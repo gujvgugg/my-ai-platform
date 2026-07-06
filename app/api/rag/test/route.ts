@@ -16,7 +16,8 @@ export async function GET(req: Request) {
     return Response.json({
       usage: 'GET /api/rag/test?q=你的问题&topK=3',
       totalDocs: memoryVectorStore.size(),
-      backend: getVectorBackend(),
+      bm25Docs: memoryVectorStore.bm25.size(),
+      backend: memoryVectorStore.bm25.size() > 0 ? 'hybrid' : getVectorBackend(),
       embeddings: isUsingLocalEmbeddings() ? '本地算法' : '云端模型',
     });
   }
@@ -25,11 +26,14 @@ export async function GET(req: Request) {
   const chunks = await retrieveContext(query, { topK });
   const elapsed = Date.now() - startTime;
 
+  const bm25Enabled = memoryVectorStore.bm25.size() > 0;
+
   return Response.json({
     query,
-    backend: getVectorBackend(),
+    backend: bm25Enabled ? 'hybrid' : getVectorBackend(),
     embeddings: isUsingLocalEmbeddings() ? '本地算法' : '云端模型',
     totalDocs: memoryVectorStore.size(),
+    bm25Docs: memoryVectorStore.bm25.size(),
     found: chunks.length,
     elapsedMs: elapsed,
     results: chunks.map((c) => ({

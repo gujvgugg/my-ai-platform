@@ -2,7 +2,10 @@
  * 本地内存向量存储 —— 当 Pinecone 未配置时的降级方案。
  * 支持与 Pinecone 相同的 API：upsert / query / deleteMany。
  * 数据仅在内存中，重启后丢失。
+ * 同时内嵌 BM25 关键词索引用于混合检索。
  */
+
+import { BM25Index } from '@/lib/rag/bm25';
 
 interface VectorRecord {
   id: string;
@@ -24,12 +27,20 @@ function cosineSim(a: number[], b: number[]): number {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
+/** 内嵌 BM25 关键词索引（供混合检索使用） */
+const bm25 = new BM25Index();
+
 export const memoryVectorStore = {
   upsert(records: Array<{ id: string; values: number[]; metadata?: Record<string, string | number | boolean> }>) {
     for (const r of records) {
       store.set(r.id, { id: r.id, values: r.values, metadata: r.metadata });
+      // 同步写入 BM25 索引
+      const content = (r.metadata?.content as string) || '';
+      if (content) {
+        bm25.addDocument(r.id, content);
+      }
     }
-    console.log(`本地向量库: 已存入 ${records.length} 条`);
+    console.log(`本地向量库: 已存入 ${records.length} 条（+BM25 同步）`);
   },
 
   query(vector: number[], topK: number = 5, filter?: Record<string, string | number | boolean>) {
@@ -58,7 +69,10 @@ export const memoryVectorStore = {
   },
 
   deleteMany(ids: string[]) {
-    for (const id of ids) store.delete(id);
+    for (const id of ids) {
+      store.delete(id);
+      bm25.removeDocument(id);
+    }
   },
 
   size() {
@@ -82,5 +96,15 @@ export const memoryVectorStore = {
 
   clear() {
     store.clear();
+    bm25.clear();
   },
+
+  /** 获取指定 ID 的 chunk 内容（供 BM25 结果填充用） */
+  getContent(id: string): string {
+    const record = store.get(id);
+    return (record?.metadata?.content as string) || '';
+  },
+
+  /** 暴露 BM25 索引供混合检索 */
+  bm25,
 };
