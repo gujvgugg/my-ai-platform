@@ -4,6 +4,7 @@ import { getModel } from '@/lib/models';
 import { getFallbackModel } from '@/lib/gateway';
 import { retrieveContext, formatRetrievedContext } from '@/lib/rag';
 import { buildCodeGenSystemPrompt } from '@/lib/app-generator';
+import { recordAICall } from '@/lib/telemetry';
 
 // ============================================================
 // 上下文限制
@@ -178,8 +179,9 @@ export async function POST(req: Request) {
 
     // ——— 6. 流式生成 ———
     const timeoutMs = isComplex ? 180_000 : 120_000;
+    const chatStartTime = Date.now();
 
-    async function tryStream(model: ReturnType<typeof getModel>) {
+    async function tryStream(model: ReturnType<typeof getModel>, modelName: string) {
       return streamText({
         model,
         system: systemPrompt,
@@ -187,11 +189,21 @@ export async function POST(req: Request) {
         temperature,
         maxOutputTokens,
         abortSignal: AbortSignal.timeout(timeoutMs),
+        onFinish: ({ finishReason, usage }) => {
+          recordAICall({
+            modelId: modelName,
+            latencyMs: Date.now() - chatStartTime,
+            inputTokens: usage.inputTokens || 0,
+            outputTokens: usage.outputTokens || 0,
+            success: finishReason === 'stop',
+            isCodeGen,
+          });
+        },
       });
     }
 
     try {
-      const streamResult = await tryStream(getModel(modelId));
+      const streamResult = await tryStream(getModel(modelId), modelId);
       return streamResult.toTextStreamResponse();
     } catch (firstError) {
       const msg = firstError instanceof Error ? firstError.message : String(firstError);
@@ -209,7 +221,7 @@ export async function POST(req: Request) {
       if (fallbackId === modelId) throw firstError;
 
       try {
-        const streamResult = await tryStream(getModel(fallbackId));
+        const streamResult = await tryStream(getModel(fallbackId), fallbackId);
         console.log(`已降级到 ${fallbackId}`);
         return streamResult.toTextStreamResponse();
       } catch {

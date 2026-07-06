@@ -24,6 +24,7 @@ import { getFallbackModel } from '@/lib/gateway';
 import { agentTools } from '@/lib/tools/stream-text-tools';
 import { retrieveContext, formatRetrievedContext } from '@/lib/rag';
 import { generatePlan, buildFallbackPlan, type PlanStep } from '@/lib/agent/planner';
+import { recordAICall } from '@/lib/telemetry';
 
 // ============================================================
 // 配置
@@ -228,6 +229,7 @@ export async function POST(req: Request) {
             );
 
             // 执行此步骤
+            const stepStartTime = Date.now();
             const result = await generateText({
               model: getModel(requestedModel),
               system: enhancedPrompt,
@@ -266,6 +268,15 @@ export async function POST(req: Request) {
                   }
                 }
               },
+            });
+
+            // 记录此步骤的 AI 调用统计
+            recordAICall({
+              modelId: requestedModel,
+              latencyMs: Date.now() - stepStartTime,
+              inputTokens: result.usage?.inputTokens || 0,
+              outputTokens: result.usage?.outputTokens || 0,
+              success: true,
             });
 
             // 发送步骤的文本输出

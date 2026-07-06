@@ -9,6 +9,7 @@ import { getModel } from '@/lib/models';
 import { getFallbackModel } from '@/lib/gateway';
 import { agentTools } from '@/lib/tools/stream-text-tools';
 import { retrieveContext, formatRetrievedContext } from '@/lib/rag';
+import { recordAICall } from '@/lib/telemetry';
 
 const AGENT_SYSTEM_PROMPT = `你是全栈开发 Agent。优先使用 Next.js App Router + Tailwind CSS 技术栈。
 
@@ -63,7 +64,9 @@ export async function POST(req: Request) {
       messages.map(({ id: _id, ...rest }) => rest as UIMessage)
     );
 
-    async function tryStream(model: ReturnType<typeof getModel>) {
+    const workflowStartTime = Date.now();
+
+    async function tryStream(model: ReturnType<typeof getModel>, modelName: string) {
       return streamText({
         model,
         system: systemPrompt,
@@ -74,11 +77,20 @@ export async function POST(req: Request) {
         temperature: 0.3,
         maxOutputTokens: 4096,
         abortSignal: AbortSignal.timeout(TIMEOUT_MS),
+        onFinish: ({ finishReason, usage }) => {
+          recordAICall({
+            modelId: modelName,
+            latencyMs: Date.now() - workflowStartTime,
+            inputTokens: usage.inputTokens || 0,
+            outputTokens: usage.outputTokens || 0,
+            success: finishReason === 'stop',
+          });
+        },
       });
     }
 
     try {
-      const result = await tryStream(getModel(requestedModel));
+      const result = await tryStream(getModel(requestedModel), requestedModel);
       return result.toTextStreamResponse();
     } catch (firstError) {
       const msg = firstError instanceof Error ? firstError.message : String(firstError);
@@ -89,7 +101,7 @@ export async function POST(req: Request) {
       const fallbackId = getFallbackModel(requestedModel);
       if (fallbackId === requestedModel) throw firstError;
       try {
-        const result = await tryStream(getModel(fallbackId));
+        const result = await tryStream(getModel(fallbackId), fallbackId);
         console.log(`Agent 降级到 ${fallbackId}`);
         return result.toTextStreamResponse();
       } catch {
